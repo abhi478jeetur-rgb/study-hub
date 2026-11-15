@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Hub — Abhijit's Study Tools</title>
+<meta name="description" content="Study Hub: a growing collection of small study tools — speed readers, physics question practice and timed races.">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f6f7f9;
+    color: #1a1d23;
+    min-height: 100vh;
+  }
+  header {
+    background: #101828;
+    color: #fff;
+    padding: 48px 20px 40px;
+    text-align: center;
+  }
+  header .logo { font-size: 44px; margin-bottom: 10px; }
+  header h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; }
+  header p { margin-top: 10px; font-size: 16px; color: #b8c0cc; max-width: 560px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+  main { max-width: 960px; margin: 0 auto; padding: 36px 20px 56px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #e3e7ee;
+    border-radius: 14px;
+    padding: 22px;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(16,24,40,0.10); border-color: #c3cad6; }
+  .card .icon { font-size: 30px; margin-bottom: 12px; }
+  .card h2 { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .card p { font-size: 14px; line-height: 1.55; color: #4a5568; }
+  .card .open { display: inline-block; margin-top: 14px; font-size: 14px; font-weight: 600; color: #2563eb; }
+  .soon {
+    margin-top: 26px;
+    border: 1.5px dashed #c3cad6;
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    color: #667085;
+    font-size: 14px;
+    background: #fbfcfd;
+  }
+  footer { text-align: center; padding: 0 20px 36px; color: #98a2b3; font-size: 13px; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">📚</div>
+    <h1>Study Hub</h1>
+    <p>Small tools that make studying faster — speed reading, physics question practice and timed revision races. Pick a tool and start.</p>
+  </header>
+
+  <main>
+    <div class="grid">
+
+      <a class="card" href="flash-reader.html">
+        <div class="icon">⚡</div>
+        <h2>Flash Reader</h2>
+        <p>Paste anything and read it one word at a time — a simple RSVP speed reader for any text.</p>
+        <span class="open">Open tool →</span>
+      </a>
+
+      <a class="card" href="physics-reader.html">
+        <div class="icon">🔬</div>
+        <h2>Physics Flash Reader</h2>
+        <p>Physics questions flashed one at a time. Pick the answer you think is right, or reveal it.</p>
+        <span class="open">Open tool →</span>
+      </a>
+
+      <a class="card" href="physics_dash_rsvp_speed_reader.html">
+        <div class="icon">🏁</div>
+        <h2>Physics Dash — RSVP Speed Reader</h2>
+        <p>All 175 physics questions in RSVP study mode — read fast, revise faster.</p>
+        <span class="open">Open tool →</span>
+      </a>
+
+      <a class="card" href="physics-dash.html">
+        <div class="icon">⏱️</div>
+        <h2>Physics Dash</h2>
+        <p>A timed race through the physics questions. Set your seconds per question and go.</p>
+        <span class="open">Open tool →</span>
+      </a>
+
+    </div>
+
+    <div class="soon">✨ More study tools are coming soon — they will appear right here on this page.</div>
+  </main>
+
+  <footer>Study Hub · Built with small tools, one at a time.</footer>
+</body>
+</html>

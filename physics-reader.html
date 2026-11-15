@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Physics Flash Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--fg:#f4f4f4;--dim:#7d7d7d;--faint:#262626;--red:#e8334a;--ok:#3ddc84;--bad:#ff5a5a;
+  --f:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--f);overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--red);outline-offset:3px;border-radius:8px}
+sup,sub{font-size:.62em;line-height:0}
+
+/* top strip */
+.top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:18px 24px;color:var(--dim);font-size:15px;z-index:3;transition:opacity .4s}
+.top .qno b{color:var(--fg)}
+.prog{position:fixed;top:0;left:0;height:2px;background:var(--red);transition:width .3s;z-index:4}
+.star{font-size:22px;color:var(--dim);transition:transform .2s,color .2s}
+.star.on{color:#ffcc33}
+.star:active{transform:scale(1.3)}
+
+/* stage */
+.stage{position:fixed;inset:0;display:grid;place-items:center;cursor:pointer;user-select:none}
+.reticle{position:relative;width:min(92vw,900px);height:200px;font-size:clamp(40px,7vw,72px)}
+.reticle::before,.reticle::after{content:"";position:absolute;left:calc(var(--pivot) + .3em);width:2px;height:34px;background:var(--red);transform:translateX(-50%);opacity:.9}
+.reticle::before{top:6px}.reticle::after{bottom:6px}
+.word{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);display:grid;grid-template-columns:var(--pivot) auto 1fr;align-items:baseline;
+  font-size:clamp(40px,7vw,72px);font-weight:700;letter-spacing:.01em;white-space:nowrap}
+.word .l{text-align:right}
+.word .p{color:var(--red)}
+.word .r{text-align:left}
+.word.free{display:block;text-align:center}
+.cue{position:absolute;left:0;right:0;top:20px;text-align:center;font-size:14px;color:var(--dim);letter-spacing:.04em;opacity:0;transition:opacity .3s}
+.cue.on{opacity:1}
+.answer{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-weight:700;font-size:clamp(30px,5vw,54px);color:var(--ok);padding:0 12px;
+  opacity:0;line-height:1.2}
+.answer.on{animation:ans .35s ease forwards}
+@keyframes ans{from{opacity:0;transform:translateY(-40%) scale(.96)}to{opacity:1;transform:translateY(-50%)}}
+.hold{position:absolute;left:30%;right:30%;bottom:-6px;height:2px;background:var(--faint);overflow:hidden;opacity:0}
+.hold.on{opacity:1}
+.hold i{display:block;height:100%;width:0;background:var(--ok)}
+.hint{position:fixed;left:0;right:0;bottom:118px;text-align:center;color:var(--dim);font-size:14px;transition:opacity .4s}
+
+/* dock */
+.dock{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:18px;
+  background:#0e0e0e;border:1px solid var(--faint);z-index:3;transition:opacity .4s,transform .4s;flex-wrap:wrap;justify-content:center;max-width:96vw}
+.btn{height:44px;min-width:44px;padding:0 12px;border-radius:12px;display:grid;place-items:center;font-size:15px;color:var(--fg)}
+.btn:hover{background:#1b1b1b}
+.btn.play{background:var(--fg);color:#000;font-weight:700;min-width:96px}
+.btn.play:hover{background:#fff}
+.speed{display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--dim);font-size:14px}
+.speed b{color:var(--fg);min-width:74px;display:inline-block;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:130px;height:4px;border-radius:4px;background:#2a2a2a}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--red)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:var(--red)}
+.sep{width:1px;height:26px;background:var(--faint);margin:0 4px}
+body.playing.idle .dock,body.playing.idle .top,body.playing.idle .hint{opacity:0;pointer-events:none}
+body.playing.idle{cursor:none}
+
+/* paused sheet */
+.sheet{position:fixed;left:50%;bottom:92px;transform:translate(-50%,24px);width:min(760px,94vw);max-height:62vh;overflow:auto;padding:22px 24px;border-radius:20px;
+  background:#0b0b0b;border:1px solid var(--faint);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;z-index:2}
+body.paused .sheet{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+body.paused .stage .reticle{opacity:.12;transition:opacity .3s}
+.sheet .full{font-size:22px;line-height:1.5;margin-bottom:16px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:600px){.opts{grid-template-columns:1fr}.speed input{width:90px}}
+.opt{text-align:left;padding:12px 14px;border-radius:12px;border:1px solid #2c2c2c;font-size:17px;display:flex;gap:10px;transition:border-color .2s,background .2s}
+.opt:hover:not(:disabled){border-color:var(--fg)}
+.opt span:first-child{color:var(--dim);font-weight:700}
+.opt.ok{border-color:var(--ok);background:rgba(61,220,132,.1)}
+.opt.bad{border-color:var(--bad);background:rgba(255,90,90,.1)}
+.sheet .row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--dim);font-size:14px;gap:10px;flex-wrap:wrap}
+.link{color:var(--fg);text-decoration:underline;text-underline-offset:3px}
+.reveal{font-size:19px;color:var(--ok);font-weight:700}
+
+/* menu */
+.menu{position:fixed;inset:0;background:rgba(0,0,0,.86);display:none;place-items:center;z-index:9}
+.menu.on{display:grid}
+.mbox{width:min(460px,92vw);background:#0b0b0b;border:1px solid var(--faint);border-radius:20px;padding:24px}
+.mbox h2{font-size:24px;margin-bottom:16px}
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #1a1a1a;gap:12px}
+.mrow label{color:#cfcfcf}
+.mrow small{display:block;color:var(--dim);font-size:13px}
+select,.num{background:#151515;color:var(--fg);border:1px solid #2c2c2c;border-radius:10px;padding:8px 10px;font:inherit}
+.num{width:90px}
+.seg{display:flex;gap:4px}
+.seg button{padding:7px 12px;border-radius:9px;border:1px solid #2c2c2c;font-size:14px}
+.seg button[aria-pressed=true]{background:var(--fg);color:#000;border-color:var(--fg)}
+.keys{color:var(--dim);font-size:13px;margin-top:14px;line-height:1.8}
+kbd{border:1px solid #333;border-bottom-width:2px;border-radius:5px;padding:0 5px;color:#ddd;font-family:inherit}
+.done{position:fixed;inset:0;display:none;place-items:center;text-align:center;z-index:8;background:#000}
+.done.on{display:grid}
+.done h2{font-size:clamp(34px,6vw,60px)}
+.done p{color:var(--dim);margin:10px 0 24px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.answer.on{opacity:1}}
+</style>
+</head>
+<body class="paused">
+<div class="prog" id="prog"></div>
+<div class="top">
+  <span class="qno">Question <b id="qi">1</b> of <b id="qn">175</b></span>
+  <span style="display:flex;gap:14px;align-items:center">
+    <button class="star" id="star" title="Mark as hard (H)" aria-label="Mark as hard">★</button>
+    <button class="btn" id="menuBtn" aria-label="Settings">⚙</button>
+  </span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="reticle" id="reticle">
+    <div class="cue" id="cue">Answer</div>
+    <div class="word" id="word"></div>
+    <div class="answer" id="answer"></div>
+    <div class="hold" id="hold"><i id="holdBar"></i></div>
+  </div>
+</div>
+<p class="hint" id="hint">Press Space or tap the screen to start reading</p>
+
+<div class="sheet" id="sheet">
+  <div class="full" id="full"></div>
+  <div class="opts" id="opts"></div>
+  <div class="row"><span id="sheetMsg">Pick the answer you think is right, or reveal it.</span><button class="link" id="revealBtn">Show answer</button></div>
+</div>
+
+<div class="dock" id="dock">
+  <button class="btn" id="prevQ" title="Previous question (←)" aria-label="Previous question">⏮</button>
+  <button class="btn" id="back" title="Restart this question (R)" aria-label="Restart this question">↺</button>
+  <button class="btn play" id="play">Play</button>
+  <button class="btn" id="nextQ" title="Next question (→)" aria-label="Next question">⏭</button>
+  <span class="sep"></span>
+  <button class="btn" id="slower" aria-label="Slower">−</button>
+  <div class="speed"><input type="range" id="wpm" min="100" max="900" step="25" value="300" aria-label="Reading speed"><b id="wpmLbl">300 wpm</b></div>
+  <button class="btn" id="faster" aria-label="Faster">+</button>
+</div>
+
+<div class="menu" id="menu"><div class="mbox">
+  <h2>Reading settings</h2>
+  <div class="mrow"><label>Answer stays for<small>before the next question starts</small></label>
+    <select id="holdSel"><option value="1">1 s</option><option value="2" selected>2 s</option><option value="3">3 s</option><option value="5">5 s</option></select></div>
+  <div class="mrow"><label>Words at a time</label><div class="seg" id="chunkSeg"><button data-v="1" aria-pressed="true">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+  <div class="mrow"><label>Which questions</label><div class="seg" id="setSeg"><button data-v="all" aria-pressed="true">All</button><button data-v="hard">Marked hard</button></div></div>
+  <div class="mrow"><label>Order</label><div class="seg" id="ordSeg"><button data-v="seq" aria-pressed="true">As listed</button><button data-v="shuffle">Shuffled</button></div></div>
+  <div class="mrow"><label>Jump to question</label><input class="num" id="jump" type="number" min="1" max="175" value="1"></div>
+  <div class="mrow"><label>Pause after each answer<small>so you can try it yourself first</small></label><div class="seg" id="quizSeg"><button data-v="off" aria-pressed="true">Off</button><button data-v="on">On</button></div></div>
+  <p class="keys"><kbd>Space</kbd> play or pause · <kbd>←</kbd> <kbd>→</kbd> question · <kbd>↑</kbd> <kbd>↓</kbd> speed · <kbd>R</kbd> restart question · <kbd>A</kbd> show answer · <kbd>H</kbd> mark hard · <kbd>1</kbd>–<kbd>4</kbd> pick option</p>
+  <div style="text-align:right;margin-top:14px"><button class="btn play" id="menuClose">Done</button></div>
+</div></div>
+
+<div class="done" id="done"><div><h2>Set finished</h2><p id="doneMsg"></p>
+  <button class="btn play" id="again" style="display:inline-grid">Read again</button>
+  <button class="btn" id="hardOnly" style="display:inline-grid;margin-left:8px;border:1px solid #333">Read marked hard only</button></div></div>
+
+<script>
+// [question, correct, wrong1, wrong2, wrong3]  (HTML allowed)
+const BANK = [
+["When a glass rod is rubbed with a silk cloth, the charge acquired by the glass rod is","Positive","Negative","Neutral","Sometimes positive, sometimes negative"],
+["An object has a negative charge of 1 coulomb. The number of excess electrons on it is","6.25 × 10<sup>18</sup>","1.6 × 10<sup>19</sup>","1.6 × 10<sup>−19</sup>","6.25 × 10<sup>17</sup>"],
+["A charge Q is enclosed by a Gaussian spherical surface of radius R. If the radius is doubled, the outward electric flux will","Remain unchanged","Be doubled","Be halved","Become four times"],
+["The unit of electric capacitance is","farad","henry","ohm","coulomb"],
+["A uniform wire of resistance 16 Ω is cut into four equal parts and attached in parallel. The equivalent resistance is","1 Ω","4 Ω","16 Ω","64 Ω"],
+["Drift velocity V<sub>d</sub> varies with the intensity of electric field E as","V<sub>d</sub> ∝ E","V<sub>d</sub> ∝ √E","V<sub>d</sub> ∝ E<sup>2</sup>","V<sub>d</sub> ∝ 1/E"],
+["Two long parallel wires, each carrying 1 A in the same direction, are placed 1 m apart. The force of attraction between them is","2 × 10<sup>−7</sup> N/m","4 × 10<sup>−7</sup> N/m","1 × 10<sup>−7</sup> N/m","2π × 10<sup>−7</sup> N/m"],
+["A conductor of length l is placed parallel to a uniform magnetic field B. When current I is passed through it, the force on the conductor is","zero","BIl","BIl/2","BI/l"],
+["The magnetic lines of force inside a bar magnet","Are from S-pole to N-pole of the magnet","Are from N-pole to S-pole of the magnet","Do not exist","Run only along the surface"],
+["Which material is most suitable for making a permanent magnet?","Steel","Soft iron","Copper","Aluminium"],
+["Wb/m<sup>2</sup> is the unit of","Magnetic field","Magnetic flux","Magnetic moment","Inductance"],
+["The self-inductance of a coil is a measure of","Electrical inertia","Electrical friction","Electrical power","Electrical charge"],
+["The unit of inductance is","henry","farad","tesla","weber"],
+["The mean value of an alternating current in a half cycle is","2I<sub>0</sub>/π","I<sub>0</sub>/√2","I<sub>0</sub>/2","πI<sub>0</sub>/2"],
+["Which of the following has the smallest wavelength?","γ-rays","X-rays","Ultraviolet rays","Radio waves"],
+["Which electromagnetic radiation is used for photography in fog?","Infrared ray","Ultraviolet ray","Visible light","Microwave"],
+["The image formed by a simple microscope is","imaginary and erect","real and inverted","real and erect","imaginary and inverted"],
+["Refraction takes place due to","change in the speed of light","change in the frequency of light","reflection at the surface","change in the amplitude of light"],
+["The concept of secondary wavelets was given by","Huygens","Newton","Young","Fresnel"],
+["For diffraction of light, the size of the obstacle should be","Of the order of wavelength of light","Much larger than the wavelength","About 1 metre","About 1 millimetre"],
+["Photoelectric effect supports","Particle nature of light","Wave nature of light","Transverse nature of light","Longitudinal nature of light"],
+["The force that causes scattering of alpha particles in Rutherford's experiment is","Coulomb force","Nuclear force","Gravitational force","Magnetic force"],
+["The equivalent energy of 10 g of substance is","9 × 10<sup>14</sup> J","9 × 10<sup>16</sup> J","9 × 10<sup>13</sup> J","3 × 10<sup>6</sup> J"],
+["In an n-type semiconductor, the impurity found has","Valency of five","Valency of three","Valency of four","Valency of two"],
+["The width of the forbidden band is maximum for","Non-conductors","Metals","Semiconductors","Superconductors"],
+["How many electrons will have a charge of one coulomb?","6.25 × 10<sup>18</sup>","1.6 × 10<sup>19</sup>","1.6 × 10<sup>−19</sup>","6.25 × 10<sup>17</sup>"],
+["An electron in an electric field experiences a force equal to its weight. The magnitude of the field is","mg/e","e/mg","mge","m/eg"],
+["Charges 1 C and −1 C are placed 1 m apart. The potential at the centre of the line joining them is","zero","9 × 10<sup>9</sup> V","1.8 × 10<sup>10</sup> V","4.5 × 10<sup>9</sup> V"],
+["Three capacitors, each of capacitance C, are connected in series. Their equivalent capacitance is","C/3","3C","C","2C/3"],
+["A 100 W bulb is connected to a 220 V source. The resistance of its filament is","484 Ω","22 Ω","2.2 Ω","48.4 Ω"],
+["The algebraic sum of all currents at any point (junction) in a circuit is","zero","infinite","always positive","always negative"],
+["A 5 T magnetic field is equal to","5 Wb/m<sup>2</sup>","5 Wb/m","5 Wb","0.5 Wb/m<sup>2</sup>"],
+["A uniform magnetic field is produced","inside a current carrying solenoid","near a straight current carrying wire","near the pole of a bar magnet","outside a solenoid near its ends"],
+["The magnetic induction at distance r from a single pole is inversely proportional to","r<sup>2</sup>","r","r<sup>3</sup>","√r"],
+["A bar magnet of moment M is placed in a uniform field B at angle θ. The torque on it is","MB sin θ","MB cos θ","MB tan θ","MB"],
+["The unit of mutual inductance is","henry","farad","tesla","weber"],
+["A conductor of length l moves with velocity v parallel to a magnetic field B. The induced emf is","zero","Bvl","Bvl/2","2Bvl"],
+["If the peak alternating voltage is E<sub>0</sub>, the root mean square value is","E<sub>0</sub>/√2","√2 E<sub>0</sub>","E<sub>0</sub>/2","2E<sub>0</sub>/π"],
+["The unit of reactance is","ohm","henry","farad","mho"],
+["The frequency of microwaves is","more than the frequency of radio waves","less than the frequency of radio waves","equal to the frequency of radio waves","more than the frequency of X-rays"],
+["The speed of electromagnetic waves in vacuum is given by","c = 1/√(μ<sub>0</sub>ε<sub>0</sub>)","c = √(μ<sub>0</sub>ε<sub>0</sub>)","c = μ<sub>0</sub>ε<sub>0</sub>","c = √(μ<sub>0</sub>/ε<sub>0</sub>)"],
+["The bottom of a pond appears slightly raised because of","Refraction of light","Reflection of light","Diffraction of light","Dispersion of light"],
+["If the focal length of a lens is f metre, its power is","1/f dioptre","f dioptre","100/f dioptre","2/f dioptre"],
+["According to Huygens, light waves are","Mechanical, longitudinal","Electromagnetic, transverse","Mechanical, transverse","Electromagnetic, longitudinal"],
+["Two waves with intensity ratio 9 : 1 interfere. The ratio of maximum to minimum intensity is","4 : 1","3 : 1","9 : 1","16 : 1"],
+["The energy of a photon of wavelength λ is","hc/λ","hλ/c","h/λ","λ/hc"],
+["The radius of Bohr's first orbit for hydrogen is r. The radius of the second orbit is","4r","2r","8r","r/4"],
+["Two nuclei have mass numbers in the ratio 1 : 3. The ratio of their nuclear densities is","1 : 1","1 : 3","3 : 1","1 : 9"],
+["The conduction band is partially empty in","metals","insulators","semiconductors","all of these"],
+["Adding a small amount of arsenic to silicon makes its conductivity","increase","decrease","remain unchanged","become zero"],
+["Two charged spheres at distance d exert force F. If both charges and the distance are doubled, the force is","F","2F","4F","F/4"],
+["The minimum amount of charge observed so far is","1.6 × 10<sup>−19</sup> C","3.2 × 10<sup>−19</sup> C","1 C","4.8 × 10<sup>−19</sup> C"],
+["The dielectric constant for a metal is","Infinite","Zero","One","Between 0 and 1"],
+["The capacitance of a parallel plate capacitor depends upon","Area of the plate","Metal of the plate","Charge on the plate","Thickness of the plate"],
+["In a Wheatstone bridge, if the battery and galvanometer are interchanged, the deflection will","Not change","Increase","Decrease","Reverse"],
+["Copper wires of length l and 2l have radii r and 2r. The ratio of their specific resistances is","1 : 1","1 : 2","2 : 1","1 : 4"],
+["Two long parallel wires, each carrying 1 A in the same direction, 1 m apart. The force of attraction is","2 × 10<sup>−7</sup> N/m","4 × 10<sup>−7</sup> N/m","1 × 10<sup>−7</sup> N/m","2π × 10<sup>−7</sup> N/m"],
+["The relation between magnetic field, dipole moment and torque is","τ⃗ = m⃗ × B⃗","τ⃗ = m⃗ · B⃗","τ⃗ = B⃗ × m⃗","m⃗ = τ⃗ × B⃗"],
+["The magnetic lines of force inside a bar magnet","are from S-pole to N-pole of the magnet","are from N-pole to S-pole of the magnet","do not exist","run only along the surface"],
+["The direction of induced current is determined by","Lenz's law","Faraday's law","Ampere's law","Coulomb's law"],
+["Wb/m<sup>2</sup> is the unit of","Magnetic field","Magnetic flux","Magnetic moment","Inductance"],
+["Energy in an LCR circuit is dissipated in","R only","L only","C only","both L and C"],
+["The peak value of alternating current is I<sub>0</sub>. Its rms value is","I<sub>0</sub>/√2","√2 I<sub>0</sub>","I<sub>0</sub>/2","2I<sub>0</sub>/π"],
+["______ is used for photography in fog.","Infrared ray","Ultraviolet ray","Visible light","Microwave"],
+["The energy in an electromagnetic wave is","Equally divided between electric and magnetic field","Only in the electric field","Only in the magnetic field","Mostly in the magnetic field"],
+["A virtual image larger than the object is formed by a","Concave mirror","Convex mirror","Plane mirror","Concave lens"],
+["With increase in wavelength, the refractive index","Decreases","Increases","Remains the same","First increases, then decreases"],
+["The concept of secondary wavelets was given by","Huygens","Newton","Young","Maxwell"],
+["In Young's double slit experiment with monochromatic light, the shape of the fringes is","Hyperbola","Straight line","Circle","Parabola"],
+["The energy of a photon is","hν","h/ν","hλ","ν/h"],
+["The ratio of de Broglie wavelengths of two electrons accelerated through 25 V and 36 V is","6/5","5/6","25/36","36/25"],
+["The force causing alpha-particle scattering in Rutherford's experiment is","Coulomb force","Nuclear force","Gravitational force","Magnetic force"],
+["If a radioactive atom emits a β-particle, its atomic mass","Remains unchanged","Increases by 1","Decreases by 1","Decreases by 4"],
+["In a p-type semiconductor, the impurity found has","Valency of three","Valency of five","Valency of four","Valency of one"],
+["The width of the forbidden band is maximum for","Non-conductors","Metals","Semiconductors","Superconductors"],
+["The dimensional formula of ε<sub>0</sub> is","[M<sup>−1</sup>L<sup>−3</sup>T<sup>4</sup>A<sup>2</sup>]","[ML<sup>3</sup>T<sup>−4</sup>A<sup>−2</sup>]","[M<sup>−1</sup>L<sup>−2</sup>T<sup>4</sup>A<sup>2</sup>]","[M<sup>−1</sup>L<sup>3</sup>T<sup>4</sup>A<sup>−2</sup>]"],
+["According to Gauss's law of electrostatics","φ<sub>E</sub> = q/ε<sub>0</sub>","φ<sub>E</sub> = qε<sub>0</sub>","φ<sub>E</sub> = ε<sub>0</sub>/q","φ<sub>E</sub> = q/4πε<sub>0</sub>"],
+["The number of electrons in two coulombs of charge is","1.25 × 10<sup>19</sup>","6.25 × 10<sup>18</sup>","3.2 × 10<sup>19</sup>","2 × 10<sup>19</sup>"],
+["If the distance between the plates of a parallel plate capacitor is halved, its capacitance","increases 2 times","decreases 2 times","increases 4 times","remains the same"],
+["The electric potential at a point inside a charged spherical shell is","Constant","Zero","Proportional to 1/r","Proportional to 1/r<sup>2</sup>"],
+["The electric field and potential of a dipole vary with distance r as","1/r<sup>3</sup> and 1/r<sup>2</sup>","1/r<sup>2</sup> and 1/r","1/r<sup>2</sup> and 1/r<sup>3</sup>","1/r and 1/r<sup>2</sup>"],
+["Kirchhoff's loop rule is a direct consequence of the law of conservation of","Energy","Charge","Momentum","Mass"],
+["A charged particle has drift velocity 4.2 × 10<sup>−4</sup> m/s in a field of 2.1 × 10<sup>−10</sup> V/m. Its mobility is","2 × 10<sup>6</sup> m<sup>2</sup>V<sup>−1</sup>s<sup>−1</sup>","2 × 10<sup>−6</sup> m<sup>2</sup>V<sup>−1</sup>s<sup>−1</sup>","8.8 × 10<sup>−14</sup> m<sup>2</sup>V<sup>−1</sup>s<sup>−1</sup>","5 × 10<sup>−7</sup> m<sup>2</sup>V<sup>−1</sup>s<sup>−1</sup>"],
+["The magnetic force F⃗ on a conductor of length l carrying current I in a field B⃗ is","I(l⃗ × B⃗)","I(B⃗ × l⃗)","I(l⃗ · B⃗)","(l⃗ × B⃗)/I"],
+["A circular coil of radius 10 cm with 100 turns carries 3.2 A. The magnetic field at its centre is","2.01 × 10<sup>−3</sup> T","2.01 × 10<sup>−5</sup> T","1.0 × 10<sup>−3</sup> T","4.02 × 10<sup>−3</sup> T"],
+["Which of the following is NOT correct about magnetic field lines?","They may intersect each other in certain conditions","They form closed loops","The tangent at a point gives the direction of B","They are crowded where the field is strong"],
+["The magnetic lines of force inside a bar magnet","Are from S-pole to N-pole of the magnet","Are from N-pole to S-pole of the magnet","Do not exist","Run only along the surface"],
+["The vertical component of earth's field at a place is √3 times the horizontal component. The angle of dip is","60°","30°","45°","90°"],
+["The magnetic flux linked with a coil of N turns and area A held with its plane parallel to field B is","Zero","NBA","BA","NBA/2"],
+["The direction of current induced in a wire moving in a magnetic field is found using","Fleming's right hand rule","Fleming's left hand rule","Right hand thumb rule","Ampere's swimming rule"],
+["If the number of turns in both primary and secondary coils is doubled, the mutual inductance","becomes 4 times","becomes 2 times","remains the same","becomes half"],
+["A 100 Ω resistor is connected to a 220 V, 50 Hz ac supply. The rms current is","2.2 A","22 A","0.22 A","3.1 A"],
+["In a series LCR circuit, the phase angle between voltage and current is given by","tan φ = (X<sub>L</sub> − X<sub>C</sub>)/R","tan φ = R/(X<sub>L</sub> − X<sub>C</sub>)","tan φ = (X<sub>L</sub> + X<sub>C</sub>)/R","sin φ = (X<sub>L</sub> − X<sub>C</sub>)/R"],
+["Which electromagnetic wave has the greatest frequency?","γ-rays","X-rays","Ultraviolet rays","Microwaves"],
+["______ is used for photography in fog.","Infrared","Ultraviolet","Visible light","Radio waves"],
+["A virtual image larger than the object is formed by a","Concave mirror","Convex mirror","Plane mirror","Concave lens"],
+["The image formed by a simple microscope is","Imaginary and erect","Real and inverted","Real and erect","Imaginary and inverted"],
+["With increase in wavelength, the refractive index","Decreases","Increases","Remains the same","Becomes zero"],
+["The concept of secondary wavelets was given by","Huygens","Newton","Fresnel","Einstein"],
+["Two waves with intensities in the ratio 9 : 1 interfere. The ratio of maximum to minimum intensity is","4 : 1","3 : 1","9 : 1","81 : 1"],
+["Light falls on a glass plate at 60°. If the reflected and refracted rays are perpendicular, the refractive index is","√3","1/√3","√2","1.5"],
+["Which material has the minimum work function?","Sodium","Platinum","Copper","Tungsten"],
+["The ratio of de Broglie wavelengths of two electrons accelerated by 25 V and 36 V is","6/5","5/6","25/36","36/25"],
+["The Bohr model of atoms","Assumes the angular momentum of electrons is quantized","Uses Einstein's photoelectric equation","Predicts a continuous emission spectrum","Treats electrons only as waves"],
+["The SI unit of the Rydberg constant R is","m<sup>−1</sup>","m","J","s<sup>−1</sup>"],
+["The mean life of a radioactive sample is 100 s. Its half life is","69.3 s","100 s","144 s","50 s"],
+["The <sub>88</sub>Ra<sup>226</sup> nucleus contains","138 neutrons and 88 protons","88 neutrons and 138 protons","226 neutrons and 88 protons","226 protons and 88 neutrons"],
+["A Zener diode functions in","Reverse biased condition","Forward biased condition","Zero bias only","Both biases equally"],
+["As temperature increases, the resistance of a semiconductor","Decreases","Increases","Remains the same","First increases, then decreases"],
+["An n-type semiconductor is formed when the dopant atom is","Pentavalent","Trivalent","Tetravalent","Divalent"],
+["Two charged spheres at distance d exert force F. If the charges are doubled and the distance is doubled, the force is","F","2F","4F","F/2"],
+["If the charge on a body is 100 nC, how many (excess) electrons are on it?","6.25 × 10<sup>11</sup>","6.25 × 10<sup>18</sup>","1.6 × 10<sup>11</sup>","6.25 × 10<sup>9</sup>"],
+["Which is the SI unit of electric field?","N/C","C/N","N·C","J/C"],
+["An electric dipole placed in a uniform electric field experiences","a torque","only a net force","both a net force and a torque","neither force nor torque"],
+["A charge Q is enclosed by a Gaussian sphere of radius R. If the radius is doubled, the outward flux will","remain unchanged","be doubled","be halved","become four times"],
+["A Gaussian sphere encloses an electric dipole. The total flux across the sphere is","zero","q/ε<sub>0</sub>","2q/ε<sub>0</sub>","infinite"],
+["The relation between electric field E and potential V is","E = −dV/dx","E = dV/dx","E = −dx/dV","E = V·x"],
+["E is the field of a short dipole on its axial line and E<sub>e</sub> on its equatorial line at the same distance. Then","E = 2E<sub>e</sub>","E = E<sub>e</sub>","E = E<sub>e</sub>/2","E = 4E<sub>e</sub>"],
+["The capacitance of a parallel plate capacitor does NOT depend on","metal of the plates","area of the plates","distance between the plates","dielectric medium"],
+["If a dielectric is introduced between the plates of a parallel plate capacitor, its capacitance","increases","decreases","remains the same","becomes zero"],
+["The energy stored per unit volume between the plates of a parallel plate capacitor is","½ ε<sub>0</sub>E<sup>2</sup>","ε<sub>0</sub>E<sup>2</sup>","½ ε<sub>0</sub>E","E<sup>2</sup>/2ε<sub>0</sub>"],
+["The dimensional formula of electric potential is","[ML<sup>2</sup>T<sup>−3</sup>A<sup>−1</sup>]","[ML<sup>2</sup>T<sup>−2</sup>A<sup>−1</sup>]","[MLT<sup>−3</sup>A<sup>−1</sup>]","[ML<sup>2</sup>T<sup>−3</sup>A<sup>−2</sup>]"],
+["Ohm's law is valid when the temperature of the conductor is","constant","increasing","decreasing","very high"],
+["Why is the Wheatstone bridge more accurate than other methods of measuring resistance?","It is a null method","It uses a galvanometer","It has four arms","It needs no battery"],
+["Drift velocity V<sub>d</sub> varies with the electric field intensity E as","V<sub>d</sub> ∝ E","V<sub>d</sub> ∝ √E","V<sub>d</sub> ∝ E<sup>2</sup>","V<sub>d</sub> ∝ 1/E"],
+["Kirchhoff's loop rule is based on the conservation of","energy","charge","momentum","mass"],
+["In a series combination of two or more resistances","the current through each resistance is the same","the voltage across each resistance is the same","the total resistance decreases","the current divides among them"],
+["In a parallel combination of n cells, we obtain","more electric current","more voltage","more resistance","less current"],
+["The resistivity of the alloy manganin is","nearly independent of temperature","sharply increasing with temperature","sharply decreasing with temperature","zero"],
+["A current of 6.4 A flows in a conductor. The number of electrons flowing per second is","4 × 10<sup>19</sup>","6.4 × 10<sup>19</sup>","1 × 10<sup>19</sup>","4 × 10<sup>18</sup>"],
+["An electron enters perpendicular to a uniform magnetic field. Its path will be","circular","a straight line","parabolic","helical"],
+["The magnetic field B at the centre of a circular loop of radius r carrying current","B is inversely proportional to r","B is directly proportional to r","B ∝ r<sup>2</sup>","B ∝ 1/r<sup>2</sup>"],
+["A moving charged particle experiences no force in a uniform magnetic field","if it moves parallel to the magnetic field","if it moves perpendicular to the field","if it moves at 45° to the field","if it moves in a circle"],
+["The magnetic field due to a toroidal solenoid is independent of its","radius","number of turns","current","core permeability"],
+["The SI unit of magnetic field is","tesla","weber","gauss","henry"],
+["Two parallel conductors carrying current in the same direction will","attract each other","repel each other","not affect each other","twist around each other"],
+["The torque on a current carrying loop in a uniform magnetic field does NOT depend upon","none of these","area of the loop","current in the loop","number of turns"],
+["According to Ampere's circuital law","∮ B⃗ · dl⃗ = μ<sub>0</sub>I","∮ B⃗ · dl⃗ = μ<sub>0</sub>/I","∮ B⃗ · dl⃗ = I/μ<sub>0</sub>","∮ B⃗ · dl⃗ = ε<sub>0</sub>I"],
+["Magnetic elements of the earth are","three quantities that describe the earth's magnetic behaviour","iron and nickel in the earth's core","only the angle of dip","the north and south poles"],
+["The strength of the earth's magnetic field is","varying from place to place on the earth's surface","the same everywhere","zero at the equator","zero at the poles"],
+["The angle of dip at the poles and at the equator is respectively","90°, 0°","0°, 90°","45°, 45°","90°, 90°"],
+["The role of self-inductance is equivalent to","inertia","friction","momentum","force"],
+["Lenz's law is a consequence of the law of conservation of","energy","charge","momentum","mass"],
+["Current from A to B in a straight wire is increasing (figure). The induced current in the nearby loop is","anti-clockwise","clockwise","zero","alternating"],
+["The unit of inductance is","henry","farad","tesla","ohm"],
+["A positively charged body has","a deficit of electrons","an excess of electrons","an excess of neutrons","a deficit of protons"],
+["A uniform 16 Ω wire is cut into four equal parts joined in parallel. The equivalent resistance is","1 Ω","4 Ω","16 Ω","2 Ω"],
+["Kirchhoff's point (junction) rule follows from the law of conservation of","Charge","Energy","Momentum","Mass"],
+["Two long parallel wires, each carrying 1 A in the same direction, 1 m apart. The force of attraction is","2 × 10<sup>−7</sup> N m<sup>−1</sup>","4 × 10<sup>−7</sup> N m<sup>−1</sup>","1 × 10<sup>−7</sup> N m<sup>−1</sup>","2π × 10<sup>−7</sup> N m<sup>−1</sup>"],
+["The phase difference between current and voltage in a purely resistive ac circuit is","0°","90°","180°","45°"],
+["Electromagnetic waves can be deflected by","none of these","an electric field","a magnetic field","both electric and magnetic fields"],
+["The refractive indices of water and glass are 4/3 and 3/2. The refractive index of glass with respect to water is","9/8","8/9","2","1/2"],
+["An astronomical telescope has objective focal length 20 cm and length 25 cm. Its magnification in normal adjustment is","4","5","0.25","100"],
+["Huygens' wave theory of light cannot explain","Photoelectric effect","Reflection","Refraction","Interference"],
+["The momentum of a photon of frequency ν is","hν/c","hc/ν","hν","h/ν"],
+["If the radius of the first Bohr orbit is r, the radius of the second orbit is","4r","2r","9r","r/2"],
+["The nuclear radius is of the order of","10<sup>−15</sup> m","10<sup>−10</sup> m","10<sup>−12</sup> m","10<sup>−8</sup> m"],
+["When <sub>7</sub>N<sup>14</sup> is bombarded by neutrons and becomes <sub>6</sub>C<sup>14</sup>, the emitted particle is a","Proton","Electron","Alpha particle","Neutron"],
+["If the forbidden energy gap of a substance is 1 eV, the substance is a","Semiconductor","Conductor","Insulator","Superconductor"],
+["In a semiconductor, electrical conductivity is due to","both electrons and holes","electrons only","holes only","ions only"],
+["Charges +3 μC and +4 μC repel with 10 N. If each gets an extra −6 μC, the new force is","5 N","10 N","20 N","2.5 N"],
+["Copper wires of length l and 2l have radii r and 2r. The ratio of their specific resistances is","1 : 1","1 : 2","2 : 1","1 : 8"],
+["A uniform wire of resistance R is cut into n equal parts joined in parallel. The equivalent resistance is","R/n<sup>2</sup>","R/n","nR","n<sup>2</sup>R"],
+["A proton enters a 5 T field at 4 × 10<sup>7</sup> m/s at right angles (q = 1.6 × 10<sup>−19</sup> C). The magnetic force is","3.2 × 10<sup>−11</sup> N","1.6 × 10<sup>−11</sup> N","3.2 × 10<sup>−12</sup> N","8 × 10<sup>−12</sup> N"],
+["The phase difference between current and voltage in a purely inductive ac circuit is","90°","0°","180°","45°"],
+["V<sub>g</sub>, V<sub>x</sub> and V<sub>m</sub> are the speeds of gamma rays, X-rays and microwaves in vacuum. Then","V<sub>g</sub> = V<sub>x</sub> = V<sub>m</sub>","V<sub>g</sub> &gt; V<sub>x</sub> &gt; V<sub>m</sub>","V<sub>g</sub> &lt; V<sub>x</sub> &lt; V<sub>m</sub>","V<sub>g</sub> &gt; V<sub>m</sub> &gt; V<sub>x</sub>"],
+["On which principle does an optical fibre work?","Total internal reflection of light","Refraction of light","Diffraction of light","Polarisation of light"],
+["A telescope's lenses have focal lengths 0.3 m and 0.05 m. In normal adjustment the distance between them is","0.35 m","0.25 m","0.15 m","6 m"],
+["Which phenomenon shows that light is a transverse wave?","Polarisation of light","Interference","Diffraction","Reflection"],
+["If both the intensity and frequency of incident light are doubled, the saturation photoelectric current","is doubled","is halved","remains the same","becomes four times"],
+["Which spectral series of hydrogen lies in the visible region?","Balmer","Lyman","Paschen","Brackett"],
+["If the radius of the first orbit of hydrogen is 5.3 × 10<sup>−11</sup> m, the radius of the second orbit is","2.12 Å","1.06 Å","0.53 Å","4.77 Å"],
+["Which of the following has maximum penetrating power?","γ-rays","α-particles","β-particles","X-rays"],
+["When indium is doped into silicon, the resulting material is","p-type semiconductor","n-type semiconductor","an insulator","an intrinsic semiconductor"],
+["A photodiode functions in","Reverse biased condition","Forward biased condition","Zero bias only","Breakdown region only"]
+];
+
+</script>
+<script>
+(() => {
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const store = { get: (k, d) => { try { const v = localStorage.getItem('pfr_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set: (k, v) => { try { localStorage.setItem('pfr_' + k, JSON.stringify(v)); } catch (e) {} } };
+const S = { wpm: store.get('wpm', 300), hold: store.get('hold', 2), chunk: store.get('chunk', 1), set: 'all', order: 'seq', quiz: 'off' };
+let hard = new Set(store.get('hard', []));
+let order = [], oi = store.get('last', 0), tokens = [], ti = 0, phase = 'words', playing = false, tmr = null, holdStart = 0, raf = null;
+
+// ---------- tokenising (keeps <sup>/<sub> intact, glues math symbols) ----------
+function tokenize(html) {
+  const raw = html.replace(/\s+/g, ' ').trim().split(' ');
+  const glue = /^(×|=|∝|→|\/|:|·|&gt;|&lt;|[+−-])$/;
+  const out = [];
+  for (let k = 0; k < raw.length; k++) {
+    let t = raw[k];
+    if (glue.test(t) && out.length && k + 1 < raw.length) { out[out.length - 1] += ' ' + t + ' ' + raw[++k]; continue; }
+    out.push(t);
+  }
+  if (S.chunk > 1) { const c = []; for (let k = 0; k < out.length; k += S.chunk) c.push(out.slice(k, k + S.chunk).join(' ')); return c; }
+  return out;
+}
+const plain = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent; };
+function pivotIndex(n) { return n <= 1 ? 0 : n <= 5 ? 1 : n <= 9 ? 2 : n <= 13 ? 3 : 4; }
+function showToken(t) {
+  const w = $('#word');
+  if (/[<&]/.test(t) || t.includes(' ')) { w.className = 'word free'; w.innerHTML = t; return; }
+  const p = pivotIndex(t.replace(/[^\p{L}\p{N}]/gu, '').length), i = Math.min(p + (t.match(/^[^\p{L}\p{N}]*/u)[0].length), t.length - 1);
+  w.className = 'word'; w.innerHTML = `<span class="l">${t.slice(0, i)}</span><span class="p">${t[i]}</span><span class="r">${t.slice(i + 1)}</span>`;
+}
+function delayFor(t) {
+  const base = 60000 / S.wpm * (S.chunk > 1 ? S.chunk * .8 : 1), len = plain(t).length;
+  let m = 1;
+  if (len > 8) m += .3; if (len > 12) m += .3;
+  if (/[<]/.test(t) || /\d/.test(t)) m += .6;          // numbers and formulas need a beat
+  if (/[,;:]$/.test(t)) m += .5; if (/[.?!]$/.test(t)) m += .9;
+  return base * m;
+}
+
+// ---------- flow ----------
+function buildOrder() {
+  let ids = [...BANK.keys()];
+  if (S.set === 'hard') ids = ids.filter(i => hard.has(i));
+  if (S.order === 'shuffle') for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  order = ids;
+}
+function cur() { return BANK[order[oi]]; }
+function loadQ(startWords = true) {
+  clearTimeout(tmr); cancelAnimationFrame(raf);
+  if (!order.length) { $('#word').className = 'word free'; $('#word').innerHTML = 'No questions marked hard yet'; return; }
+  oi = Math.max(0, Math.min(oi, order.length - 1)); store.set('last', S.set === 'all' && S.order === 'seq' ? oi : 0);
+  tokens = tokenize(cur()[0]); ti = 0; phase = 'words';
+  $('#qi').textContent = oi + 1; $('#qn').textContent = order.length;
+  $('#prog').style.width = ((oi + 1) / order.length * 100) + '%';
+  $('#star').classList.toggle('on', hard.has(order[oi]));
+  $('#answer').classList.remove('on'); $('#cue').classList.remove('on'); $('#hold').classList.remove('on'); $('#word').style.opacity = 1;
+  showToken(tokens[0]); fillSheet();
+  if (playing && startWords) step();
+}
+function step() {
+  clearTimeout(tmr);
+  if (!playing) return;
+  if (phase === 'gap') { showAnswer(); return; }
+  if (phase === 'words') {
+    showToken(tokens[ti]);
+    const d = delayFor(tokens[ti]);
+    tmr = setTimeout(() => { ti++; if (ti >= tokens.length) { phase = 'gap'; if (S.quiz === 'on') { setPlaying(false); return; } tmr = setTimeout(showAnswer, 350); } else step(); }, d);
+  } else if (phase === 'answer') runHold();
+}
+function showAnswer() {
+  phase = 'answer'; $('#word').style.opacity = 0; $('#cue').classList.add('on');
+  const a = $('#answer'); a.innerHTML = cur()[1]; a.classList.remove('on'); void a.offsetWidth; a.classList.add('on');
+  holdStart = performance.now(); runHold();
+}
+function runHold() {
+  $('#hold').classList.add('on'); const total = S.hold * 1000;
+  const tick = now => { if (!playing) return; const el = now - holdStart;
+    $('#holdBar').style.width = Math.min(100, el / total * 100) + '%';
+    if (el >= total) { next(); return; } raf = requestAnimationFrame(tick); };
+  raf = requestAnimationFrame(tick);
+}
+function next() {
+  if (oi >= order.length - 1) { setPlaying(false); finished(); return; }
+  oi++; loadQ();
+}
+function prev() { oi = Math.max(0, oi - 1); loadQ(); }
+let pausedAt = 0;
+function setPlaying(on) {
+  if (on && ($('#done').classList.contains('on') || !order.length)) return;
+  playing = on; document.body.classList.toggle('playing', on); document.body.classList.toggle('paused', !on);
+  $('#play').textContent = on ? 'Pause' : 'Play'; $('#hint').style.opacity = on ? 0 : 1;
+  if (!on) { clearTimeout(tmr); cancelAnimationFrame(raf); pausedAt = performance.now(); fillSheet(); }
+  else { if (phase === 'answer') holdStart += performance.now() - pausedAt; step(); }
+  idle();
+}
+function finished() { $('#doneMsg').textContent = `You read ${order.length} question${order.length === 1 ? '' : 's'}. ${hard.size} marked hard.`; $('#done').classList.add('on'); }
+
+// ---------- paused sheet: full question, clickable options ----------
+let opts = [];
+function fillSheet() {
+  if (!order.length) return;
+  const q = cur();
+  $('#full').innerHTML = q[0];
+  opts = [q[1], q[2], q[3], q[4]];
+  const seed = order[oi] * 7 + 3; opts = opts.map((o, k) => [o, (seed * (k + 1) * 31) % 97]).sort((a, b) => a[1] - b[1]).map(x => x[0]); // stable shuffle per question
+  $('#opts').innerHTML = opts.map((o, k) => `<button class="opt" data-k="${k}"><span>${'ABCD'[k]}</span><span>${o}</span></button>`).join('');
+  $('#sheetMsg').innerHTML = phase === 'answer' ? `<span class="reveal">${q[1]}</span>` : 'Pick the answer you think is right, or reveal it.';
+}
+function pick(k) {
+  const q = cur(), btns = $$('#opts .opt'), ok = opts[k] === q[1];
+  btns.forEach((b, i) => { b.disabled = true; if (opts[i] === q[1]) b.classList.add('ok'); });
+  if (!ok) btns[k].classList.add('bad');
+  $('#sheetMsg').innerHTML = ok ? '<span class="reveal">Right. Press Space to keep reading.</span>' : `Not quite. The answer is <span class="reveal">${q[1]}</span>`;
+}
+function reveal() { const q = cur(); $$('#opts .opt').forEach((b, i) => { b.disabled = true; if (opts[i] === q[1]) b.classList.add('ok'); }); $('#sheetMsg').innerHTML = `<span class="reveal">${q[1]}</span>`; }
+$('#opts').onclick = e => { const b = e.target.closest('.opt'); if (b && !b.disabled) pick(+b.dataset.k); };
+$('#revealBtn').onclick = reveal;
+
+// ---------- controls ----------
+function setWpm(v) { S.wpm = Math.max(100, Math.min(900, v)); $('#wpm').value = S.wpm; $('#wpmLbl').textContent = S.wpm + ' wpm'; store.set('wpm', S.wpm); }
+setWpm(S.wpm);
+$('#wpm').oninput = e => setWpm(+e.target.value);
+$('#slower').onclick = () => setWpm(S.wpm - 25); $('#faster').onclick = () => setWpm(S.wpm + 25);
+$('#play').onclick = () => setPlaying(!playing);
+$('#stage').onclick = () => setPlaying(!playing);
+$('#nextQ').onclick = () => { if (oi < order.length - 1) { oi++; loadQ(); } };
+$('#prevQ').onclick = prev;
+$('#back').onclick = () => loadQ();
+function toggleHard() { const id = order[oi]; hard.has(id) ? hard.delete(id) : hard.add(id); store.set('hard', [...hard]); $('#star').classList.toggle('on', hard.has(id)); }
+$('#star').onclick = toggleHard;
+
+function seg(id, key, after) {
+  const el = $(id); el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v) === String(S[key])));
+  el.onclick = e => { const b = e.target.closest('button'); if (!b) return; S[key] = isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v;
+    el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); store.set(key, S[key]); after && after(); };
+}
+seg('#chunkSeg', 'chunk', () => loadQ(false));
+seg('#setSeg', 'set', () => { buildOrder(); oi = 0; loadQ(false); });
+seg('#ordSeg', 'order', () => { buildOrder(); oi = 0; loadQ(false); });
+seg('#quizSeg', 'quiz');
+$('#holdSel').value = S.hold; $('#holdSel').onchange = e => { S.hold = +e.target.value; store.set('hold', S.hold); };
+$('#jump').onchange = e => { S.set = 'all'; S.order = 'seq'; seg('#setSeg', 'set', () => { buildOrder(); oi = 0; loadQ(false); }); seg('#ordSeg', 'order', () => { buildOrder(); oi = 0; loadQ(false); });
+  buildOrder(); oi = Math.max(1, Math.min(175, +e.target.value || 1)) - 1; loadQ(false); };
+$('#menuBtn').onclick = e => { e.stopPropagation(); setPlaying(false); $('#menu').classList.add('on'); };
+$('#menuClose').onclick = () => $('#menu').classList.remove('on');
+$('#again').onclick = () => { $('#done').classList.remove('on'); oi = 0; buildOrder(); loadQ(false); };
+$('#hardOnly').onclick = () => { $('#done').classList.remove('on'); S.set = 'hard'; seg('#setSeg', 'set', () => { buildOrder(); oi = 0; loadQ(false); }); buildOrder(); oi = 0; loadQ(false); };
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if ($('#menu').classList.contains('on')) { if (e.key === 'Escape') $('#menu').classList.remove('on'); return; }
+  const k = e.key;
+  if (k === ' ') { e.preventDefault(); setPlaying(!playing); }
+  else if (k === 'ArrowRight') $('#nextQ').click();
+  else if (k === 'ArrowLeft') prev();
+  else if (k === 'ArrowUp') { e.preventDefault(); setWpm(S.wpm + 25); }
+  else if (k === 'ArrowDown') { e.preventDefault(); setWpm(S.wpm - 25); }
+  else if (k === 'r' || k === 'R') loadQ();
+  else if (k === 'h' || k === 'H') toggleHard();
+  else if (k === 'a' || k === 'A') { setPlaying(false); reveal(); }
+  else if (!playing && '1234'.includes(k)) { const b = $$('#opts .opt')[+k - 1]; if (b && !b.disabled) pick(+k - 1); }
+});
+
+// hide chrome while reading; show on mouse move
+let idleT; function idle() { document.body.classList.remove('idle'); clearTimeout(idleT); if (playing) idleT = setTimeout(() => document.body.classList.add('idle'), 1800); }
+document.addEventListener('mousemove', idle); document.addEventListener('touchstart', idle);
+
+// pivot position (fixed red guide) — keep focus letter at 40% of the reading box
+document.documentElement.style.setProperty('--pivot', '40%');
+buildOrder(); loadQ(false);
+})();
+</script>
+</body>
+</html>
